@@ -1,19 +1,21 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-from datetime import datetime
-from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 import json
 import glob
 import os
+from datetime import datetime
+from scipy.interpolate import UnivariateSpline
 import plotly.graph_objects as go
 
-# Tự động reload sau mỗi 10 phút (600,000ms)
+# --- SETUP ---
 st.set_page_config(page_title="PRIZM Vote Tracker", layout="wide")
+
+# --- AUTO RELOAD ---
 try:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=600_000, key="auto_reload")
+    st_autorefresh(interval=600_000, key="auto_reload")  # 600_000ms = 10 phút
 except:
     pass
 
@@ -46,8 +48,8 @@ except Exception as e:
     st.error("Không thể load dữ liệu từ Google Sheet.")
     st.exception(e)
 
-# --- BIỂU ĐỒ VOTE SPEED (PLOTLY) ---
-st.subheader("📈 Biểu đồ tốc độ vote (Plotly) — tương tác mượt mà")
+# --- BIỂU ĐỒ VOTE SPEED (PLOTLY, HOVER ĐƠN GIẢN) ---
+st.subheader("📈 Biểu đồ tốc độ vote (Plotly) — hover đơn giản")
 try:
     json_files = glob.glob("vote_history_*.json")
     if not json_files:
@@ -106,49 +108,26 @@ try:
             y_dense = spline(x_dense)
             x_dense_dt = [datetime.fromtimestamp(ts) for ts in x_dense]
 
-            # Detect gap >15 min
-            warning_threshold_min = 15
-            cutoff_ts = []
-            for i in range(1, len(times)):
-                delta = (times[i] - times[i-1]).total_seconds() / 60
-                if delta > warning_threshold_min:
-                    cutoff_ts.append(times[i].timestamp())
-
-            segments_x = []
-            segments_y = []
-            segments_hover = []
-            segments_color = []
-
-            for i in range(1, len(x_dense)):
-                t_prev = x_dense[i-1]
-                t_now = x_dense[i]
-                is_gap = any(t_prev < cut < t_now for cut in cutoff_ts)
-                color = "lightgray" if is_gap else idol_colors.get(name, "gray")
-                segments_x.append([x_dense_dt[i-1], x_dense_dt[i]])
-                segments_y.append([y_dense[i-1], y_dense[i]])
-                segments_hover.append([
-                    f"{name}<br>{x_dense_dt[i-1].strftime('%Y-%m-%d %H:%M:%S')}<br>{y_dense[i-1]:,.1f} votes/min",
-                    f"{name}<br>{x_dense_dt[i].strftime('%Y-%m-%d %H:%M:%S')}<br>{y_dense[i]:,.1f} votes/min"
-                ])
-                segments_color.append(color)
-
-            for x_seg, y_seg, hover_seg, color in zip(segments_x, segments_y, segments_hover, segments_color):
-                fig.add_trace(go.Scatter(
-                    x=x_seg,
-                    y=y_seg,
-                    mode="lines",
-                    line=dict(color=color, width=2),
-                    hoverinfo="text",
-                    text=hover_seg,
-                    name=name if color != "lightgray" else f"{name} (gap)"
-                ))
+            fig.add_trace(go.Scatter(
+                x=x_dense_dt,
+                y=y_dense,
+                mode="lines",
+                name=name,
+                line=dict(color=idol_colors.get(name, "gray"), width=2),
+                hovertemplate=(
+                    "<b>%{text}</b><br>" +
+                    "%{x|%Y-%m-%d %H:%M}<br>" +
+                    "%{y:.1f} votes/min"
+                ),
+                text=[name]*len(x_dense_dt)
+            ))
 
         fig.update_layout(
             title="Vote Speed Over Time — Top 4 (Plotly Interactive)",
             xaxis_title="Time",
             yaxis_title="Votes/min",
             hovermode="x unified",
-            legend=dict(title="Idol"),
+            legend_title="Idol",
             height=500
         )
 
