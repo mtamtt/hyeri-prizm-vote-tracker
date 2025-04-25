@@ -21,7 +21,7 @@ try:
     df_sheet = df_sheet.dropna(subset=["Votes"])
 
     # Fix dấu phẩy và convert sang int
-    df_sheet["Votes"] = df_sheet["Votes"].astype(str).str.replace(",", "").astype(int)
+    df_sheet["Votes"] = pd.to_numeric(df_sheet["Votes"].astype(str).str.replace(",", ""), errors="coerce").fillna(0).astype(int)
 
     # Lấy top 4 theo số vote cao nhất
     df_top4 = df_sheet.sort_values("Votes", ascending=False).head(4).copy()
