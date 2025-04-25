@@ -11,7 +11,7 @@ df = pd.read_csv(sheet_url)
 
 # Làm sạch dữ liệu và lấy top 4 vote cao nhất
 df = df.dropna(subset=["Name", "Votes"])
-df["Votes"] = df["Votes"].str.replace(".", "", regex=False).astype(int)
+df["Votes"] = df["Votes"].astype(int)
 top4 = df.sort_values(by="Votes", ascending=False).head(4).copy()
 
 # Vẽ biểu đồ vote speed (giả định bạn có cột Time + Speed trong dữ liệu)
