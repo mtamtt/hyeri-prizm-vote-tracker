@@ -11,7 +11,7 @@ import os
 st.set_page_config(page_title="PRIZM Vote Tracker", layout="wide")
 st.title("💖 PRIZM Vote Tracker — Top 4 (Realtime View)")
 
-# --- LOAD BẢNG TỪ GOOGLE SHEET ---
+# --- LOAD BẢNG Từ GOOGLE SHEET ---
 st.subheader("📊 Bảng xếp hạng (từ Google Sheet)")
 try:
     sheet_url = "https://docs.google.com/spreadsheets/d/1T341aZcdJH7pPQSaRt3PwhCOaMEdL8xDSoULMpsfTr4/gviz/tq?tqx=out:csv"
@@ -25,6 +25,7 @@ try:
 
     # Lấy top 4 theo số vote cao nhất
     df_top4 = df_sheet.sort_values("Votes", ascending=False).head(4).copy()
+    df_top4 = df_top4.drop(columns=["Rank"], errors="ignore")
     df_top4.insert(0, "Rank", range(1, len(df_top4) + 1))
 
     # Hiển thị bảng
@@ -32,7 +33,7 @@ try:
     display_cols = [col for col in display_cols if col in df_top4.columns]
 
     st.dataframe(
-        df_top4[display_cols].style.format({"Votes": "{:,}"}),
+        df_top4[display_cols].style.format({"Votes": ":,"}),
         use_container_width=True
     )
 except Exception as e:
