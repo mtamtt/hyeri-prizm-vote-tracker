@@ -5,3 +5,7 @@ numpy
 scipy
 matplotlib
 plotly
+gspread
+oauth2client
+requests
+beautifulsoup4
