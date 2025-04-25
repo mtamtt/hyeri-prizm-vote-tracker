@@ -9,7 +9,7 @@ import glob
 import os
 
 st.set_page_config(page_title="PRIZM Vote Tracker", layout="wide")
-st.title("💖 PRIZM Vote Tracker — Top 4")
+st.title("💖 PRIZM Vote Tracker — Top 4 (Realtime View)")
 
 # --- LOAD BẢNG TỪ GOOGLE SHEET ---
 st.subheader("📊 Bảng xếp hạng (từ Google Sheet)")
@@ -17,14 +17,17 @@ try:
     sheet_url = "https://docs.google.com/spreadsheets/d/1T341aZcdJH7pPQSaRt3PwhCOaMEdL8xDSoULMpsfTr4/gviz/tq?tqx=out:csv"
     df_sheet = pd.read_csv(sheet_url)
 
-    # Convert votes to int
-    df_sheet["Votes"] = df_sheet["Votes"].astype(int)
+    # Loại bỏ dòng thiếu Votes
+    df_sheet = df_sheet.dropna(subset=["Votes"])
 
-    # Sort by Votes descending & get Top 4
+    # Fix dấu phẩy và convert sang int
+    df_sheet["Votes"] = df_sheet["Votes"].astype(str).str.replace(",", "").astype(int)
+
+    # Lấy top 4 theo số vote cao nhất
     df_top4 = df_sheet.sort_values("Votes", ascending=False).head(4).copy()
     df_top4.insert(0, "Rank", range(1, len(df_top4) + 1))
 
-    # Reorder columns if available
+    # Hiển thị bảng
     display_cols = ["Rank", "Name", "Votes", "%", "1min", "1h+", "Gap", "Est. Catch"]
     display_cols = [col for col in display_cols if col in df_top4.columns]
 
@@ -39,7 +42,6 @@ except Exception as e:
 # --- LOAD VOTE HISTORY JSON ---
 st.subheader("📈 Vote Speed Chart (từ vote_history_*.json)")
 try:
-    # Tìm file JSON mới nhất
     json_files = glob.glob("vote_history_*.json")
     if not json_files:
         st.warning("Không tìm thấy file vote_history_*.json trong thư mục.")
@@ -55,6 +57,7 @@ try:
             "HAEWON": "orchid"
         }
 
+        # Top 4 theo vote cao nhất hiện tại
         latest_votes = {name: records[-1][1] for name, records in data.items() if records}
         top4_names = sorted(latest_votes.items(), key=lambda x: x[1], reverse=True)[:4]
         top4_names = [name for name, _ in top4_names]
@@ -65,7 +68,7 @@ try:
             if len(records) < 2:
                 continue
 
-            # Clean trùng timestamp
+            # Bỏ timestamp trùng
             cleaned = []
             last_time = None
             for t, v in records:
@@ -87,7 +90,7 @@ try:
                 ax.plot(time_points, speeds, label=name, color=idol_colors.get(name, "gray"))
                 continue
 
-            # Spline mượt
+            # Spline
             x = [t.timestamp() for t in time_points]
             y = speeds
             spline = UnivariateSpline(x, y, s=len(x)*4)
