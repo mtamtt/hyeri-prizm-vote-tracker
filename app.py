@@ -8,18 +8,23 @@ import json
 import glob
 import os
 
+# Tự động reload sau mỗi 10 phút (600,000ms)
 st.set_page_config(page_title="PRIZM Vote Tracker", layout="wide")
-st.title("💖 PRIZM Vote Tracker — Top 4 (Realtime View)")
+try:
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=600000, key="auto_reload")
+except:
+    pass
+
+st.title("💖 PRIZM Vote Tracker — Top 4 (Auto Update)")
 
 # --- BẢNG GOOGLE SHEET ---
-st.subheader("📊 Bảng xếp hạng (từ Google Sheet)")
+st.subheader("📊 Bảng xếp hạng (Google Sheet)")
 try:
     sheet_url = "https://docs.google.com/spreadsheets/d/1T341aZcdJH7pPQSaRt3PwhCOaMEdL8xDSoULMpsfTr4/gviz/tq?tqx=out:csv"
     df_sheet = pd.read_csv(sheet_url)
 
     df_sheet = df_sheet.dropna(subset=["Votes"])
-
-    # Bỏ dấu chấm và phẩy rồi ép kiểu int
     df_sheet["Votes"] = (
         df_sheet["Votes"]
         .astype(str)
@@ -28,7 +33,7 @@ try:
         .astype(int)
     )
 
-    df_top4 = df_sheet.head(4).copy()  # giữ nguyên thứ tự Sheet
+    df_top4 = df_sheet.head(4).copy()
 
     display_cols = ["Rank", "Name", "Votes", "%", "1min", "1h+", "Gap", "Est. Catch"]
     display_cols = [col for col in display_cols if col in df_top4.columns]
@@ -42,7 +47,7 @@ except Exception as e:
     st.exception(e)
 
 # --- BIỂU ĐỒ VOTE SPEED ---
-st.subheader("📈 Vote Speed Chart (từ vote_history_*.json)")
+st.subheader("📈 Biểu đồ tốc độ vote (vote_history_*.json)")
 try:
     json_files = glob.glob("vote_history_*.json")
     if not json_files:
@@ -80,21 +85,24 @@ try:
 
             times = [datetime.fromisoformat(t) for t, _ in records]
             votes = [v for _, v in records]
+
             speeds = []
-            for i in range(1, len(records)):
-                delta_min = (times[i] - times[i - 1]).total_seconds() / 60
-                vote_diff = votes[i] - votes[i - 1]
-                speed = vote_diff / delta_min if delta_min > 0 else 0
-                speeds.append(speed)
-            time_points = times[1:]
+            time_points = []
+            for i in range(1, len(times)):
+                delta = (times[i] - times[i - 1]).total_seconds() / 60
+                if delta == 0: continue
+                speed = (votes[i] - votes[i - 1]) / delta
+                if speed >= 0 and speed < 100000:
+                    speeds.append(speed)
+                    time_points.append(times[i])
+
             if len(speeds) < 4:
                 ax.plot(time_points, speeds, label=name, color=idol_colors.get(name, "gray"))
                 continue
 
             x = [t.timestamp() for t in time_points]
-            y = speeds
-            spline = UnivariateSpline(x, y, s=len(x)*4)
-            x_dense = np.linspace(min(x), max(x), 400)
+            spline = UnivariateSpline(x, speeds, s=len(x)*4)
+            x_dense = np.linspace(min(x), max(x), 300)
             y_dense = spline(x_dense)
             x_dense_dt = [datetime.fromtimestamp(ts) for ts in x_dense]
 
